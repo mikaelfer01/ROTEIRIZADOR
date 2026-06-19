@@ -1,6 +1,20 @@
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+
+function showMapFatalError(message) {
+  const container = document.getElementById('map');
+  if (!container) return;
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;width:100%;background:#1a1d24;color:#f0f0f0;padding:24px;text-align:center;gap:12px;box-sizing:border-box;">
+      <div style="font-size:32px;">⚠️</div>
+      <div style="font-size:16px;font-weight:600;">Não foi possível carregar o mapa</div>
+      <div style="font-size:13px;opacity:0.8;max-width:480px;">${message}</div>
+    </div>
+  `;
+}
+
 if (!MAPBOX_TOKEN) {
   console.error('VITE_MAPBOX_TOKEN não definido. Configure seu token no arquivo .env (veja .env.example).');
+  showMapFatalError('O token do Mapbox não foi configurado no ambiente de build. Verifique se o secret VITE_MAPBOX_TOKEN está cadastrado como "Repository secret" (não "Environment secret") no GitHub.');
 }
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
@@ -80,13 +94,25 @@ map.addControl(new mapboxgl.GeolocateControl({
   trackUserLocation: true, showUserHeading: true
 }), 'top-right');
 
+map.on('error', (e) => {
+  const status = e?.error?.status;
+  if (status === 401 || status === 403) {
+    showMapFatalError('O token do Mapbox foi rejeitado (erro ' + status + '). Verifique se o token é válido e se o domínio deste site está autorizado nas restrições de URL do token, em account.mapbox.com.');
+  } else {
+    console.error('Erro do Mapbox:', e?.error || e);
+  }
+});
+
+// Inicialização independente do mapa: lista de pedidos, filtros, KPIs e frete
+// devem funcionar mesmo se o Mapbox falhar ao carregar (token inválido/ausente).
+initFilters();
+renderOrders();
+updateHeaderKPIs();
+updateKPITab();
+calcFrete();
+
 map.on('load', () => {
-  initFilters();
-  renderOrders();
   plotMarkers();
-  updateHeaderKPIs();
-  updateKPITab();
-  calcFrete();
   map.on('moveend', updateZoomStats);
   updateZoomStats();
 });
@@ -1881,6 +1907,43 @@ const REQUIRED_COLS = [
   'Vendedor'
 ];
 
+// Normaliza nomes de coluna para comparação tolerante a acentos,
+// maiúsculas/minúsculas e espaços extras (varia entre exportações de planilha).
+function normalizeHeader(s) {
+  return String(s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+// Para cada coluna obrigatória, encontra a coluna correspondente na planilha
+// (mesmo com diferenças de acento/caixa/espaço) e remapeia as linhas para os
+// nomes canônicos esperados por parseRows().
+function matchColumns(rows, foundCols) {
+  const normalizedMap = {};
+  foundCols.forEach(c => { normalizedMap[normalizeHeader(c)] = c; });
+
+  const colAliasMap = {};
+  REQUIRED_COLS.forEach(req => {
+    colAliasMap[req] = normalizedMap[normalizeHeader(req)] || null;
+  });
+
+  const normalizedRows = rows.map(r => {
+    const nr = { ...r };
+    REQUIRED_COLS.forEach(req => {
+      const actual = colAliasMap[req];
+      if (actual && actual !== req) nr[req] = r[actual];
+    });
+    return nr;
+  });
+
+  const matchedCols = REQUIRED_COLS.filter(c => colAliasMap[c] != null);
+  const missingCols = REQUIRED_COLS.filter(c => colAliasMap[c] == null);
+
+  return { normalizedRows, matchedCols, missingCols };
+}
+
 let importedRawData = null; // parsed rows before confirm
 
 function openImport() {
@@ -1948,10 +2011,11 @@ function processFile(file) {
       if (rows.length === 0) throw new Error('Planilha vazia');
 
       const foundCols = Object.keys(rows[0]);
-      renderColChips(foundCols);
+      const { normalizedRows, matchedCols, missingCols } = matchColumns(rows, foundCols);
+      renderColChips(matchedCols);
 
-      // Validate required columns
-      const missing = REQUIRED_COLS.filter(c => !foundCols.includes(c));
+      // Validate required columns (tolerante a acentos/caixa/espaços)
+      const missing = missingCols;
       const errors = [];
       const warnings = [];
 
@@ -1960,7 +2024,7 @@ function processFile(file) {
       }
 
       // Parse into order objects
-      const parsed = parseRows(rows, warnings);
+      const parsed = parseRows(normalizedRows, warnings);
 
       document.getElementById('import-loading').style.display = 'none';
       document.getElementById('import-preview').style.display = 'block';
