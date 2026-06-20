@@ -1,0 +1,57 @@
+.route-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem;
+  border-top: 1px solid #e5e7eb;
+  overflow-y: auto;
+}
+
+.route-panel h2 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.route-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.route-summary-line {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.route-warning {
+  color: #b45309;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.route-optimize-btn {
+  background: #1d4ed8;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.route-optimize-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.route-result {
+  border-top: 1px dashed #e5e7eb;
+  padding-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.route-result ol {
+  padding-left: 1.2rem;
+}

@@ -1,0 +1,25 @@
+.kpi-bar {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.kpi-label {
+  font-size: 0.7rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
