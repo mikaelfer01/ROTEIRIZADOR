@@ -26,10 +26,14 @@ function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <span className="app-header-emblem" aria-hidden="true">⚜</span>
+        <span className="app-header-badge" aria-hidden="true">⚜</span>
         <div className="app-header-text">
           <h1>Roteirizador Horizonte Pro</h1>
-          <p className="app-header-tagline">Elegância parisiense · Otimização de rotas Mapbox</p>
+          <p className="app-header-tagline">
+            <span>Elegância parisiense</span>
+            <span className="app-header-dot" aria-hidden="true" />
+            <span>Otimização de rotas Mapbox</span>
+          </p>
         </div>
       </header>
       <KpiBar />

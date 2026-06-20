@@ -22,18 +22,23 @@
 }
 
 .orders-panel-header button {
-  background: var(--color-bleu-dark);
+  background: linear-gradient(120deg, var(--color-bleu-dark), var(--color-bleu));
   color: var(--color-branco);
   border: none;
   border-radius: var(--radius-sm);
   padding: 0.45rem 0.8rem;
   font-size: 0.78rem;
   font-weight: 600;
-  transition: background 0.15s ease;
+  box-shadow: var(--shadow-soft);
 }
 
 .orders-panel-header button:hover:not(:disabled) {
-  background: var(--color-bleu);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lift);
+}
+
+.orders-panel-header button:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .orders-panel-header button:disabled {
@@ -81,6 +86,7 @@
 .orders-panel-actions button:hover {
   background: var(--color-creme);
   border-color: var(--color-or);
+  transform: translateY(-1px);
 }
 
 .orders-list {
@@ -94,23 +100,33 @@
 }
 
 .orders-list li {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.4rem;
   border: 1px solid var(--color-pierre);
+  border-left: 3px solid transparent;
   border-radius: var(--radius-md);
   padding: 0.45rem 0.65rem;
   background: var(--color-branco);
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.18s var(--ease-out), background 0.18s var(--ease-out),
+    box-shadow 0.18s var(--ease-out), transform 0.18s var(--ease-out);
+  animation: fade-rise 0.25s var(--ease-out) backwards;
+}
+
+.orders-list li:hover {
+  box-shadow: var(--shadow-soft);
+  transform: translateX(2px);
 }
 
 .orders-list li.selected {
-  border-color: var(--color-verde);
+  border-left-color: var(--color-verde);
   background: #f1faf4;
 }
 
 .orders-list li.focused {
   border-color: var(--color-or);
+  border-left-color: var(--color-or);
   box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.25);
 }
 
@@ -155,6 +171,7 @@
 .order-locate-btn:hover:not(:disabled) {
   background: var(--color-creme);
   border-color: var(--color-or);
+  transform: scale(1.08);
 }
 
 .order-locate-btn:disabled {
@@ -164,8 +181,10 @@
 
 .badge {
   border-radius: 999px;
-  padding: 0 0.4rem;
-  font-size: 0.7rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   flex-shrink: 0;
 }
 
