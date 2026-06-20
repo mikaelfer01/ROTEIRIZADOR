@@ -15,6 +15,17 @@
   margin: 0;
 }
 
+.route-manual-heading {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ardoise);
+  margin: 0.4rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--color-pierre);
+}
+
 .route-field {
   display: flex;
   flex-direction: column;

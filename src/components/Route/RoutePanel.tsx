@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { useStore } from '../../state/useStore'
 import { optimizeRoute, MAX_OPTIMIZATION_STOPS, type OptimizationResult } from '../../services/optimization'
 import { selectOrdersForMaxLoad } from '../../services/loadPlanner'
-import { planRouteClusters } from '../../services/routePlanner'
+import { planFleetClusters, vehicleForRouteDistance } from '../../services/routePlanner'
 import { openManifest } from '../../services/manifest'
-import type { OptimizedRoute } from '../../types'
+import type { OptimizedRoute, Vehicle } from '../../types'
 import './RoutePanel.css'
 
 export function RoutePanel() {
@@ -48,7 +48,12 @@ export function RoutePanel() {
   const pesoPct = vehicle.capacidadeKg > 0 ? Math.min(100, (totalPeso / vehicle.capacidadeKg) * 100) : 0
   const volumePct = vehicle.capacidadeM3 > 0 ? Math.min(100, (totalVolume / vehicle.capacidadeM3) * 100) : 0
 
-  function buildRoute(result: OptimizationResult, pesoKg: number, volumeM3: number): OptimizedRoute {
+  function buildRoute(
+    result: OptimizationResult,
+    pesoKg: number,
+    volumeM3: number,
+    routeVehicle: Vehicle,
+  ): OptimizedRoute {
     return {
       stops: result.orderedWaypoints.map((wp, idx) => ({
         order: wp.order,
@@ -61,8 +66,8 @@ export function RoutePanel() {
       geometry: result.geometry,
       totalPesoKg: pesoKg,
       totalVolumeM3: volumeM3,
-      custoEstimado: result.totalDistanceKm * vehicle.custoPorKm,
-      vehicle,
+      custoEstimado: result.totalDistanceKm * routeVehicle.custoPorKm,
+      vehicle: routeVehicle,
     }
   }
 
@@ -78,6 +83,7 @@ export function RoutePanel() {
     setActiveRouteIndex(index)
     setOptimizedRoute(route)
     setSelectedOrderIds(new Set(route.stops.map((s) => s.order.id)))
+    setSelectedVehicleId(route.vehicle.id)
     setRangeWarning(null)
   }
 
@@ -101,21 +107,31 @@ export function RoutePanel() {
     setPlanningFleet(true, { done: 0, total: 0 })
     setRangeWarning(null)
     try {
-      const clusters = planRouteClusters(orders, depot, vehicle, MAX_OPTIMIZATION_STOPS)
+      const clusters = planFleetClusters(orders, depot, vehicles, MAX_OPTIMIZATION_STOPS)
       const routes: OptimizedRoute[] = []
       for (let i = 0; i < clusters.length; i++) {
         setPlanningFleet(true, { done: i, total: clusters.length })
         const cluster = clusters[i]
-        const result = await optimizeRoute(depot, cluster, vehicle.perfil)
-        const pesoKg = cluster.reduce((sum, o) => sum + (o.pesoKg ?? 0), 0)
-        const volumeM3 = cluster.reduce((sum, o) => sum + (o.volumeM3 ?? 0), 0)
-        routes.push(buildRoute(result, pesoKg, volumeM3))
+        const pesoKg = cluster.orders.reduce((sum, o) => sum + (o.pesoKg ?? 0), 0)
+        const volumeM3 = cluster.orders.reduce((sum, o) => sum + (o.volumeM3 ?? 0), 0)
+
+        let clusterVehicle = cluster.vehicle
+        let result = await optimizeRoute(depot, cluster.orders, clusterVehicle.perfil)
+
+        const upgraded = vehicleForRouteDistance(vehicles, clusterVehicle, result.totalDistanceKm, pesoKg, volumeM3)
+        if (upgraded.id !== clusterVehicle.id) {
+          clusterVehicle = upgraded
+          result = await optimizeRoute(depot, cluster.orders, clusterVehicle.perfil)
+        }
+
+        routes.push(buildRoute(result, pesoKg, volumeM3, clusterVehicle))
       }
       setActiveRouteIndex(routes.length > 0 ? 0 : null)
       setRoutePlan(routes)
       if (routes.length > 0) {
         setOptimizedRoute(routes[0])
         setSelectedOrderIds(new Set(routes[0].stops.map((s) => s.order.id)))
+        setSelectedVehicleId(routes[0].vehicle.id)
       } else {
         setOptimizedRoute(null)
         setSelectedOrderIds(new Set())
@@ -137,7 +153,7 @@ export function RoutePanel() {
           `A rota tem ${result.totalDistanceKm.toFixed(0)} km, acima do alcance máximo de ${vehicle.nome} (${vehicle.distanciaMaximaKm} km, ida e volta). Reduza as paradas ou use outro veículo.`,
         )
       }
-      const route = buildRoute(result, totalPeso, totalVolume)
+      const route = buildRoute(result, totalPeso, totalVolume, vehicle)
       setOptimizedRoute(route)
       if (activeRouteIndex != null) {
         replaceRouteInPlan(activeRouteIndex, route)
@@ -165,18 +181,6 @@ export function RoutePanel() {
     <div className="route-panel">
       <h2>Roteirização</h2>
 
-      <label className="route-field">
-        Veículo
-        <select value={selectedVehicleId} onChange={(e) => setSelectedVehicleId(e.target.value)}>
-          {vehicles.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.nome} — até {v.capacidadeKg}kg / {v.capacidadeM3}m³
-              {v.distanciaMaximaKm ? ` / ${v.distanciaMaximaKm}km` : ''}
-            </option>
-          ))}
-        </select>
-      </label>
-
       <button
         className="route-plan-fleet-btn"
         disabled={isPlanningFleet || geocodedOrders.length === 0}
@@ -187,8 +191,9 @@ export function RoutePanel() {
           : `Planejar frota automaticamente (${geocodedOrders.length} pedidos)`}
       </button>
       <p className="route-result-hint">
-        Agrupa todos os pedidos geocodificados em rotas dentro da capacidade do veículo selecionado —
-        sem necessidade de seleção manual.
+        O sistema agrupa os pedidos por proximidade e escolhe sozinho o veículo mais barato que comporta
+        cada grupo — Moto, Fiorino, Van, Caminhão ou Fretebras (terceirizado) para o que sobrar da frota
+        própria. Você não precisa selecionar veículo nem pedidos.
       </p>
 
       {routePlan.length > 0 && (
@@ -204,12 +209,19 @@ export function RoutePanel() {
             return (
               <div key={idx} className={`route-plan-card${isActive ? ' active' : ''}`}>
                 <button className="route-plan-card-main" onClick={() => loadRouteForEditing(idx)}>
-                  <span className="route-plan-card-title">Rota {idx + 1}</span>
+                  <span className="route-plan-card-title">
+                    Rota {idx + 1} — {route.vehicle.nome}
+                  </span>
                   <span className="route-plan-card-meta">
-                    {route.stops.length} paradas · {route.totalDistanceKm.toFixed(0)} km · R${' '}
+                    {route.stops.length} paradas · {route.totalPesoKg.toFixed(0)}kg · {route.totalDistanceKm.toFixed(0)} km · R${' '}
                     {route.custoEstimado.toFixed(2)}
                   </span>
-                  {routeOverCapacity && (
+                  {route.vehicle.id === 'fretebras' && (
+                    <span className="route-plan-card-warning">
+                      Carga acima da frota própria — terceirizar via Fretebras
+                    </span>
+                  )}
+                  {routeOverCapacity && route.vehicle.id !== 'fretebras' && (
                     <span className="route-plan-card-warning">Acima da capacidade do veículo</span>
                   )}
                 </button>
@@ -233,6 +245,19 @@ export function RoutePanel() {
           </button>
         </div>
       )}
+
+      <h3 className="route-manual-heading">Edição manual</h3>
+      <label className="route-field">
+        Veículo
+        <select value={selectedVehicleId} onChange={(e) => setSelectedVehicleId(e.target.value)}>
+          {vehicles.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.nome} — até {v.capacidadeKg}kg / {v.capacidadeM3}m³
+              {v.distanciaMaximaKm ? ` / ${v.distanciaMaximaKm}km` : ''}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <button
         className="route-maximize-btn"

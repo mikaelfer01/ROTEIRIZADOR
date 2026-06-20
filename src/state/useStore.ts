@@ -21,6 +21,14 @@ const DEFAULT_VEHICLES: Vehicle[] = [
   },
   { id: 'van', nome: 'Van', capacidadeKg: 1200, capacidadeM3: 8, custoPorKm: 1.4, perfil: 'driving' },
   { id: 'caminhao', nome: 'Caminhão 3/4', capacidadeKg: 3500, capacidadeM3: 20, custoPorKm: 2.3, perfil: 'driving-traffic' },
+  {
+    id: 'fretebras',
+    nome: 'Fretebras (terceirizado)',
+    capacidadeKg: 8000,
+    capacidadeM3: 40,
+    custoPorKm: 3.2,
+    perfil: 'driving-traffic',
+  },
 ]
 
 interface AppState {
