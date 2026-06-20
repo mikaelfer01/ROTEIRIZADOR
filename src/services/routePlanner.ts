@@ -32,16 +32,66 @@ function cheapestViableVehicle(
   return viable[0] ?? null
 }
 
+function fitsVehicle(orders: Order[], vehicle: Vehicle, maxStops: number): boolean {
+  const t = totals(orders)
+  return t.kg <= vehicle.capacidadeKg && t.m3 <= vehicle.capacidadeM3 && orders.length <= maxStops
+}
+
+/**
+ * It's not economical to dispatch a vehicle that's mostly empty, so once the sweep
+ * below produces geographically-adjacent groups, this pass merges any group whose
+ * load falls short of the fleet's smallest vehicle capacity into its neighbor —
+ * e.g. two 500kg pockets become one 1000kg Fiorino load instead of two near-empty
+ * runs — stopping only when a merge would bust the largest vehicle's capacity or
+ * the optimization API's stop limit. A leftover undersized tail group is folded
+ * into its predecessor as a final pass since it has no "next" neighbor to join.
+ */
+function mergeUndersizedGroups(
+  groups: Order[][],
+  largestVehicle: Vehicle,
+  maxStops: number,
+  minLoadKg: number,
+): Order[][] {
+  const merged = groups.map((g) => [...g])
+
+  let changed = true
+  while (changed) {
+    changed = false
+    for (let i = 0; i < merged.length - 1; i++) {
+      if (totals(merged[i]).kg >= minLoadKg) continue
+      const combined = [...merged[i], ...merged[i + 1]]
+      if (fitsVehicle(combined, largestVehicle, maxStops)) {
+        merged[i] = combined
+        merged.splice(i + 1, 1)
+        changed = true
+        break
+      }
+    }
+  }
+
+  const lastIdx = merged.length - 1
+  if (lastIdx > 0 && totals(merged[lastIdx]).kg < minLoadKg) {
+    const combined = [...merged[lastIdx - 1], ...merged[lastIdx]]
+    if (fitsVehicle(combined, largestVehicle, maxStops)) {
+      merged[lastIdx - 1] = combined
+      merged.pop()
+    }
+  }
+
+  return merged
+}
+
 /**
  * Sweep algorithm for capacitated clustering (a standard CVRP heuristic), extended
  * to pick the vehicle automatically instead of requiring one upfront: orders are
  * swept by angular position around the depot and packed into geographically
  * coherent bins bounded only by the largest available vehicle's capacity and the
- * optimization API's stop limit; once a bin is closed, it's assigned the cheapest
- * vehicle in the fleet that can actually carry its accumulated weight/volume —
- * so light nearby clusters land on a Moto/Fiorino while heavier ones escalate to
- * a Van/Caminhão, and a single order too big for the owned fleet falls through to
- * the highest-capacity option (e.g. an outsourced/Fretebras entry) on its own.
+ * optimization API's stop limit. Undersized bins are then merged with their
+ * geographic neighbor (see mergeUndersizedGroups) so no route ships below the
+ * smallest vehicle's capacity. Each final bin is assigned the cheapest vehicle in
+ * the fleet that can actually carry its accumulated weight/volume — light nearby
+ * loads land on the Fiorino, and anything too big for the owned fleet falls
+ * through to the outsourced Fretebras entry on its own.
  */
 export function planFleetClusters(
   orders: Order[],
@@ -57,30 +107,31 @@ export function planFleetClusters(
   )
 
   const largestVehicle = [...vehicles].sort((a, b) => b.capacidadeKg - a.capacidadeKg)[0]
+  const minLoadKg = Math.min(...vehicles.map((v) => v.capacidadeKg))
 
-  const clusters: FleetCluster[] = []
+  const groups: Order[][] = []
   let current: Order[] = []
-
-  const closeCluster = () => {
-    if (current.length === 0) return
-    const t = totals(current)
-    const vehicle = cheapestViableVehicle(t.kg, t.m3, current.length, vehicles, maxStops) ?? largestVehicle
-    clusters.push({ orders: current, vehicle })
-    current = []
-  }
 
   for (const order of sorted) {
     const trial = [...current, order]
-    const t = totals(trial)
-    const fitsLargest =
-      t.kg <= largestVehicle.capacidadeKg && t.m3 <= largestVehicle.capacidadeM3 && trial.length <= maxStops
+    const fitsLargest = fitsVehicle(trial, largestVehicle, maxStops)
 
-    if (current.length > 0 && !fitsLargest) closeCluster()
+    if (current.length > 0 && !fitsLargest) {
+      groups.push(current)
+      current = []
+    }
     current.push(order)
   }
-  closeCluster()
+  if (current.length > 0) groups.push(current)
 
-  return clusters
+  const finalGroups = mergeUndersizedGroups(groups, largestVehicle, maxStops, minLoadKg)
+
+  return finalGroups.map((groupOrders) => {
+    const t = totals(groupOrders)
+    const vehicle =
+      cheapestViableVehicle(t.kg, t.m3, groupOrders.length, vehicles, maxStops) ?? largestVehicle
+    return { orders: groupOrders, vehicle }
+  })
 }
 
 /**

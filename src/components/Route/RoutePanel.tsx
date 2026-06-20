@@ -191,9 +191,10 @@ export function RoutePanel() {
           : `Planejar frota automaticamente (${geocodedOrders.length} pedidos)`}
       </button>
       <p className="route-result-hint">
-        O sistema agrupa os pedidos por proximidade e escolhe sozinho o veículo mais barato que comporta
-        cada grupo — Moto, Fiorino, Van, Caminhão ou Fretebras (terceirizado) para o que sobrar da frota
-        própria. Você não precisa selecionar veículo nem pedidos.
+        O sistema agrupa os pedidos por proximidade, sempre buscando ao menos a carga mínima de uma
+        Fiorino (1000kg) antes de fechar uma rota — não vale a pena rodar com o veículo quase vazio — e
+        escolhe sozinho entre Fiorino ou Fretebras (terceirizado) o veículo mais barato que comporta cada
+        grupo. Você não precisa selecionar veículo nem pedidos.
       </p>
 
       {routePlan.length > 0 && (

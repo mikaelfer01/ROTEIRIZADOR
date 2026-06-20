@@ -9,7 +9,6 @@ const DEFAULT_DEPOT: Depot = {
 }
 
 const DEFAULT_VEHICLES: Vehicle[] = [
-  { id: 'moto', nome: 'Moto', capacidadeKg: 30, capacidadeM3: 0.1, custoPorKm: 0.6, perfil: 'driving' },
   {
     id: 'fiorino',
     nome: 'Fiorino',
@@ -19,8 +18,6 @@ const DEFAULT_VEHICLES: Vehicle[] = [
     perfil: 'driving',
     distanciaMaximaKm: 2000,
   },
-  { id: 'van', nome: 'Van', capacidadeKg: 1200, capacidadeM3: 8, custoPorKm: 1.4, perfil: 'driving' },
-  { id: 'caminhao', nome: 'Caminhão 3/4', capacidadeKg: 3500, capacidadeM3: 20, custoPorKm: 2.3, perfil: 'driving-traffic' },
   {
     id: 'fretebras',
     nome: 'Fretebras (terceirizado)',
