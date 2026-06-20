@@ -1931,6 +1931,9 @@ const REQUIRED_COLS = [
   'Vendedor'
 ];
 
+// Únicas colunas sem as quais uma linha não pode ser parseada (ver parseRows)
+const CRITICAL_COLS = ['Pedido', 'Cidade', 'Estado'];
+
 // Normaliza nomes de coluna para comparação tolerante a acentos,
 // maiúsculas/minúsculas e espaços extras (varia entre exportações de planilha).
 function normalizeHeader(s) {
@@ -2038,17 +2041,27 @@ function processFile(file) {
       const { normalizedRows, matchedCols, missingCols } = matchColumns(rows, foundCols);
       renderColChips(matchedCols);
 
-      // Validate required columns (tolerante a acentos/caixa/espaços)
-      const missing = missingCols;
+      // Validate required columns (tolerante a acentos/caixa/espaços).
+      // Só Pedido/Cidade/Estado são realmente indispensáveis para gerar uma
+      // linha válida (ver parseRows) — as demais colunas ausentes geram só
+      // aviso, para não bloquear a importação de planilhas com layout diferente.
+      const missingCritical = missingCols.filter(c => CRITICAL_COLS.includes(c));
+      const missingOptional = missingCols.filter(c => !CRITICAL_COLS.includes(c));
       const errors = [];
       const warnings = [];
 
-      if (missing.length > 0) {
-        errors.push('Colunas não encontradas: ' + missing.join(', '));
+      if (missingCritical.length > 0) {
+        errors.push('Colunas obrigatórias não encontradas: ' + missingCritical.join(', '));
+      }
+      if (missingOptional.length > 0) {
+        warnings.push('Colunas não encontradas (serão ignoradas): ' + missingOptional.join(', '));
       }
 
       // Parse into order objects
       const parsed = parseRows(normalizedRows, warnings);
+      if (parsed.length === 0) {
+        errors.push('Nenhuma linha válida encontrada — verifique se as colunas Pedido, Cidade e Estado estão preenchidas.');
+      }
 
       document.getElementById('import-loading').style.display = 'none';
       document.getElementById('import-preview').style.display = 'block';

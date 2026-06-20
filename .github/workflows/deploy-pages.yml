@@ -19,6 +19,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,6 +28,14 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Check VITE_MAPBOX_TOKEN secret
+        run: |
+          if [ -z "$VITE_MAPBOX_TOKEN" ]; then
+            echo "::error::VITE_MAPBOX_TOKEN secret is empty or not set. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+        env:
+          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
       - run: npm run build
         env:
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
