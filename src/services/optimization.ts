@@ -1,7 +1,9 @@
 import { requireMapboxToken } from './mapboxToken'
 import type { Depot, MapboxProfile, Order } from '../types'
 
-export const MAX_OPTIMIZATION_STOPS = 12
+// Mapbox's Optimization API caps the total coordinate count (depot + stops) at 12,
+// so the depot consumes one slot, leaving 11 available for order stops.
+export const MAX_OPTIMIZATION_STOPS = 11
 
 export interface OptimizationWaypoint {
   order: Order
