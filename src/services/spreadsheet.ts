@@ -9,9 +9,12 @@ const COLUMN_ALIASES: Record<string, string> = {
   numdopedido: 'pedido',
   cliente: 'cliente',
   nomecliente: 'cliente',
+  clientenomefantasia: 'cliente',
   endereco: 'endereco',
   enderecoentrega: 'endereco',
+  enderecocompleto: 'endereco',
   rua: 'endereco',
+  bairro: 'bairro',
   cidade: 'cidade',
   municipio: 'cidade',
   estado: 'estado',
@@ -23,6 +26,17 @@ const COLUMN_ALIASES: Record<string, string> = {
   volumem3: 'volumeM3',
   valor: 'valor',
   valortotal: 'valor',
+  totaldemercadoria: 'valor',
+  quantidade: 'quantidade',
+  unidade: 'unidade',
+  // recognized but ignored at the order level (product-line / metadata detail)
+  previsaodefaturamento: 'ignored',
+  previsaodefaturamentocompleta: 'ignored',
+  descricaodoproduto: 'ignored',
+  descricaodoprodutocompleta: 'ignored',
+  operacao: 'ignored',
+  situacao: 'ignored',
+  vendedor: 'ignored',
 }
 
 function normalizeHeader(raw: string): string | null {
@@ -40,30 +54,54 @@ function toNumber(value: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined
 }
 
+interface AggregatedOrder {
+  pedido: string
+  cliente?: string
+  endereco?: string
+  cidade: string
+  estado: string
+  cep?: string
+  pesoKg: number
+  hasExplicitPeso: boolean
+  valor: number
+  hasNonKgUnit: boolean
+}
+
 export async function parseSpreadsheet(file: File): Promise<ImportResult> {
   const buffer = await file.arrayBuffer()
   const workbook = XLSX.read(buffer, { type: 'array' })
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
-  const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' })
+  const grid = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' })
 
   const warnings: string[] = []
   const errors: string[] = []
 
-  if (rows.length === 0) {
+  if (grid.length === 0) {
     errors.push('A planilha está vazia.')
     return { orders: [], warnings, errors }
   }
 
-  const headerMap = new Map<string, string>()
-  const unmapped: string[] = []
-  for (const rawHeader of Object.keys(rows[0])) {
-    const normalized = normalizeHeader(rawHeader)
-    if (normalized) {
-      headerMap.set(rawHeader, normalized)
-    } else {
-      unmapped.push(rawHeader)
-    }
+  // The export may include title/filter rows above the real header (e.g. pivot-table
+  // exports), so locate the row that actually declares a "Pedido" column instead of
+  // assuming row 1 is the header.
+  const headerRowIndex = grid.findIndex((row) =>
+    row.some((cell) => normalizeHeader(String(cell ?? '').trim()) === 'pedido'),
+  )
+  if (headerRowIndex === -1) {
+    errors.push('Não foi possível localizar a coluna "Pedido" no cabeçalho da planilha.')
+    return { orders: [], warnings, errors }
   }
+
+  const headerRow = grid[headerRowIndex]
+  const headerMap = new Map<number, string>()
+  const unmapped: string[] = []
+  headerRow.forEach((rawHeader, colIdx) => {
+    const header = String(rawHeader ?? '').trim()
+    if (!header) return
+    const normalized = normalizeHeader(header)
+    if (normalized) headerMap.set(colIdx, normalized)
+    else unmapped.push(header)
+  })
 
   const mappedFields = new Set(headerMap.values())
   const missingCritical = CRITICAL_COLS.filter((c) => !mappedFields.has(c))
@@ -78,36 +116,91 @@ export async function parseSpreadsheet(file: File): Promise<ImportResult> {
     warnings.push(`Colunas não reconhecidas (ignoradas): ${unmapped.join(', ')}`)
   }
 
-  const orders: Order[] = []
-  rows.forEach((row, idx) => {
+  // Pivot-style exports list one row per product line, so the same Pedido repeats
+  // across several rows — group by Pedido and sum weight/value across its lines.
+  const grouped = new Map<string, AggregatedOrder>()
+  let skippedRows = 0
+
+  for (let r = headerRowIndex + 1; r < grid.length; r++) {
+    const row = grid[r]
     const fields: Record<string, unknown> = {}
-    for (const [rawHeader, normalized] of headerMap) {
-      fields[normalized] = row[rawHeader]
+    for (const [colIdx, normalized] of headerMap) {
+      fields[normalized] = row[colIdx]
     }
 
     const pedido = String(fields.pedido ?? '').trim()
     const cidade = String(fields.cidade ?? '').trim()
     const estado = String(fields.estado ?? '').trim()
-
     if (!pedido || !cidade || !estado) {
-      warnings.push(`Linha ${idx + 2} ignorada: Pedido, Cidade ou Estado em branco.`)
-      return
+      skippedRows++
+      continue
     }
 
-    orders.push({
-      id: crypto.randomUUID(),
-      pedido,
-      cliente: String(fields.cliente ?? '').trim() || undefined,
-      endereco: String(fields.endereco ?? '').trim() || undefined,
-      cidade,
-      estado,
-      cep: String(fields.cep ?? '').trim() || undefined,
-      pesoKg: toNumber(fields.pesoKg),
-      volumeM3: toNumber(fields.volumeM3),
-      valor: toNumber(fields.valor),
-      geocodeStatus: 'pending',
-    })
-  })
+    const bairro = String(fields.bairro ?? '').trim()
+    const enderecoBase = String(fields.endereco ?? '').trim()
+    const endereco = bairro && enderecoBase ? `${enderecoBase}, ${bairro}` : enderecoBase || undefined
+
+    let entry = grouped.get(pedido)
+    if (!entry) {
+      entry = {
+        pedido,
+        cliente: String(fields.cliente ?? '').trim() || undefined,
+        endereco,
+        cidade,
+        estado,
+        cep: String(fields.cep ?? '').trim() || undefined,
+        pesoKg: 0,
+        hasExplicitPeso: false,
+        valor: 0,
+        hasNonKgUnit: false,
+      }
+      grouped.set(pedido, entry)
+    }
+
+    const explicitPeso = toNumber(fields.pesoKg)
+    if (explicitPeso != null) {
+      entry.pesoKg += explicitPeso
+      entry.hasExplicitPeso = true
+    } else {
+      const unidade = String(fields.unidade ?? '').trim().toLowerCase()
+      const quantidade = toNumber(fields.quantidade)
+      if (quantidade != null) {
+        if (unidade === 'kg' || unidade === '') {
+          entry.pesoKg += quantidade
+        } else {
+          entry.hasNonKgUnit = true
+        }
+      }
+    }
+
+    const valor = toNumber(fields.valor)
+    if (valor != null) entry.valor += valor
+  }
+
+  if (skippedRows > 0) {
+    warnings.push(`${skippedRows} linha(s) ignorada(s): Pedido, Cidade ou Estado em branco.`)
+  }
+
+  const nonKgOrders = [...grouped.values()].filter((o) => o.hasNonKgUnit)
+  if (nonKgOrders.length > 0) {
+    const sample = nonKgOrders.slice(0, 5).map((o) => o.pedido).join(', ')
+    warnings.push(
+      `${nonKgOrders.length} pedido(s) têm itens em unidades diferentes de "kg" (ex: sc, UN) — esse peso não entrou no total automático: ${sample}${nonKgOrders.length > 5 ? '…' : ''}`,
+    )
+  }
+
+  const orders: Order[] = [...grouped.values()].map((o) => ({
+    id: crypto.randomUUID(),
+    pedido: o.pedido,
+    cliente: o.cliente,
+    endereco: o.endereco,
+    cidade: o.cidade,
+    estado: o.estado,
+    cep: o.cep,
+    pesoKg: o.pesoKg > 0 ? o.pesoKg : undefined,
+    valor: o.valor > 0 ? o.valor : undefined,
+    geocodeStatus: 'pending',
+  }))
 
   if (orders.length === 0) {
     errors.push('Nenhuma linha válida encontrada — verifique se Pedido, Cidade e Estado estão preenchidos.')
