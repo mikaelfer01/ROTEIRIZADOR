@@ -122,3 +122,30 @@ ol {
 .mapboxgl-popup-tip {
   border-top-color: var(--color-branco) !important;
 }
+
+.order-popup-table {
+  border-collapse: collapse;
+  margin: 0.4rem 0;
+  font-size: 0.78rem;
+}
+
+.order-popup-table td {
+  padding: 0.1rem 0;
+  vertical-align: top;
+}
+
+.order-popup-table td:first-child {
+  color: var(--color-ardoise);
+  font-weight: 600;
+  padding-right: 0.6rem;
+  white-space: nowrap;
+}
+
+.order-popup-table td:last-child {
+  color: var(--color-texto);
+}
+
+.mapboxgl-popup-content em {
+  font-size: 0.72rem;
+  color: var(--color-ardoise);
+}

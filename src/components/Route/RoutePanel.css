@@ -108,6 +108,154 @@
   margin: 0;
 }
 
+.route-plan-fleet-btn {
+  background: linear-gradient(120deg, var(--color-or), var(--color-or-light));
+  color: var(--color-bleu-dark);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.65rem;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: var(--shadow-soft);
+}
+
+.route-plan-fleet-btn:hover:not(:disabled) {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lift);
+}
+
+.route-plan-fleet-btn:disabled {
+  background: var(--color-pierre);
+  color: var(--color-ardoise);
+  cursor: not-allowed;
+}
+
+.route-plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: var(--color-branco);
+  border: 1px solid var(--color-pierre);
+  border-radius: var(--radius-md);
+  padding: 0.7rem 0.8rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.route-plan-card {
+  display: flex;
+  align-items: stretch;
+  gap: 0.3rem;
+  border: 1px solid var(--color-pierre);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--color-creme);
+  transition: border-color 0.18s var(--ease-out), background 0.18s var(--ease-out);
+}
+
+.route-plan-card.active {
+  border-left-color: var(--color-or);
+  background: #fdf8ea;
+}
+
+.route-plan-card-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  background: transparent;
+  border: none;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.route-plan-card-title {
+  font-weight: 700;
+  font-size: 0.84rem;
+  color: var(--color-bleu-dark);
+}
+
+.route-plan-card-meta {
+  font-size: 0.74rem;
+  color: var(--color-ardoise);
+}
+
+.route-plan-card-warning {
+  font-size: 0.7rem;
+  color: var(--color-rouge);
+  font-weight: 600;
+}
+
+.route-plan-card-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.3rem;
+}
+
+.route-plan-card-actions button {
+  background: transparent;
+  border: 1px solid var(--color-pierre);
+  border-radius: var(--radius-sm);
+  width: 1.7rem;
+  height: 1.7rem;
+  font-size: 0.78rem;
+  color: var(--color-bleu-dark);
+}
+
+.route-plan-card-actions button:hover {
+  background: var(--color-branco);
+  border-color: var(--color-or);
+}
+
+.route-new-draft-btn {
+  background: transparent;
+  border: 1px dashed var(--color-bleu-light);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-bleu-dark);
+  cursor: pointer;
+}
+
+.route-new-draft-btn:hover {
+  background: var(--color-creme);
+  border-color: var(--color-or);
+}
+
+.route-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.route-result-header h3 {
+  margin: 0;
+}
+
+.route-manifest-btn {
+  background: var(--color-branco);
+  border: 1px solid var(--color-pierre);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-bleu-dark);
+  cursor: pointer;
+}
+
+.route-manifest-btn:hover {
+  background: var(--color-creme);
+  border-color: var(--color-or);
+}
+
 .route-optimize-btn {
   background: linear-gradient(120deg, var(--color-bleu-dark), var(--color-bleu));
   color: var(--color-branco);

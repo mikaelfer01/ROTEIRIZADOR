@@ -37,6 +37,11 @@ interface AppState {
   isGeocoding: boolean
   geocodeProgress: { done: number; total: number } | null
 
+  routePlan: OptimizedRoute[]
+  activeRouteIndex: number | null
+  isPlanningFleet: boolean
+  planProgress: { done: number; total: number } | null
+
   importWarnings: string[]
   importErrors: string[]
 
@@ -58,6 +63,13 @@ interface AppState {
   setOptimizedRoute: (route: OptimizedRoute | null) => void
   setDepot: (depot: Depot) => void
 
+  setRoutePlan: (routes: OptimizedRoute[]) => void
+  setActiveRouteIndex: (index: number | null) => void
+  replaceRouteInPlan: (index: number, route: OptimizedRoute) => void
+  appendRouteToPlan: (route: OptimizedRoute) => void
+  removeRouteFromPlan: (index: number) => void
+  setPlanningFleet: (isPlanningFleet: boolean, progress?: { done: number; total: number } | null) => void
+
   setMapStyle: (style: MapStyleKey) => void
   toggle3D: () => void
   toggleGlobe: () => void
@@ -78,6 +90,11 @@ export const useStore = create<AppState>((set) => ({
   isGeocoding: false,
   geocodeProgress: null,
 
+  routePlan: [],
+  activeRouteIndex: null,
+  isPlanningFleet: false,
+  planProgress: null,
+
   importWarnings: [],
   importErrors: [],
 
@@ -94,6 +111,8 @@ export const useStore = create<AppState>((set) => ({
       importWarnings: result.warnings,
       importErrors: result.errors,
       optimizedRoute: null,
+      routePlan: [],
+      activeRouteIndex: null,
     }),
 
   toggleOrderSelection: (id) =>
@@ -130,6 +149,27 @@ export const useStore = create<AppState>((set) => ({
   setOptimizedRoute: (optimizedRoute) => set({ optimizedRoute }),
 
   setDepot: (depot) => set({ depot }),
+
+  setRoutePlan: (routePlan) => set({ routePlan }),
+
+  setActiveRouteIndex: (activeRouteIndex) => set({ activeRouteIndex }),
+
+  replaceRouteInPlan: (index, route) =>
+    set((state) => ({
+      routePlan: state.routePlan.map((r, i) => (i === index ? route : r)),
+    })),
+
+  appendRouteToPlan: (route) =>
+    set((state) => ({ routePlan: [...state.routePlan, route] })),
+
+  removeRouteFromPlan: (index) =>
+    set((state) => ({
+      routePlan: state.routePlan.filter((_, i) => i !== index),
+      activeRouteIndex: state.activeRouteIndex === index ? null : state.activeRouteIndex,
+    })),
+
+  setPlanningFleet: (isPlanningFleet, progress = null) =>
+    set({ isPlanningFleet, planProgress: progress }),
 
   setMapStyle: (mapStyle) => set({ mapStyle }),
   toggle3D: () => set((state) => ({ show3D: !state.show3D })),

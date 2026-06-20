@@ -185,23 +185,48 @@ export function MapView() {
     orders.forEach((order) => {
       if (order.lat == null || order.lng == null) return
       const isSelected = selectedOrderIds.has(order.id)
+      const rows = [
+        ['Pedido', order.pedido],
+        ['Cliente', order.cliente],
+        ['Endereço', order.endereco],
+        ['Cidade/UF', `${order.cidade}/${order.estado}`],
+        ['CEP', order.cep],
+        ['Peso', order.pesoKg != null ? `${order.pesoKg.toFixed(1)} kg` : undefined],
+        ['Volume', order.volumeM3 != null ? `${order.volumeM3.toFixed(2)} m³` : undefined],
+        ['Valor', order.valor != null ? `R$ ${order.valor.toFixed(2)}` : undefined],
+      ].filter(([, value]) => value)
+
+      const popupHtml = `
+        <strong>${order.pedido}</strong>
+        <table class="order-popup-table">
+          ${rows
+            .slice(1)
+            .map(([label, value]) => `<tr><td>${label}</td><td>${value}</td></tr>`)
+            .join('')}
+        </table>
+        <em>Clique no marcador para ${isSelected ? 'remover da' : 'incluir na'} rota</em>
+      `
+
+      const popup = new mapboxgl.Popup({ offset: 12, closeButton: false, closeOnClick: false }).setHTML(popupHtml)
+
       const marker = new mapboxgl.Marker({
         color: isSelected ? SELECTED_COLOR : MUTED_COLOR,
       })
         .setLngLat([order.lng, order.lat])
-        .setPopup(
-          new mapboxgl.Popup({ offset: 12 }).setHTML(
-            `<strong>${order.pedido}</strong><br/>${order.cidade}/${order.estado}<br/><em>Clique no marcador para ${
-              isSelected ? 'remover da' : 'incluir na'
-            } rota</em>`,
-          ),
-        )
+        .setPopup(popup)
         .addTo(map)
 
-      marker.getElement().style.cursor = 'pointer'
-      marker.getElement().addEventListener('click', (e) => {
+      const el = marker.getElement()
+      el.style.cursor = 'pointer'
+      el.addEventListener('click', (e) => {
         e.stopPropagation()
         toggleOrderSelection(order.id)
+      })
+      el.addEventListener('mouseenter', () => {
+        if (!popup.isOpen()) marker.togglePopup()
+      })
+      el.addEventListener('mouseleave', () => {
+        if (popup.isOpen()) marker.togglePopup()
       })
 
       orderMarkersRef.current.set(order.id, marker)
