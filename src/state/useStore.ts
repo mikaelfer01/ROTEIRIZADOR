@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Depot, ImportResult, OptimizedRoute, Order, Vehicle } from '../types'
+import type { Depot, ImportResult, MapStyleKey, OptimizedRoute, Order, Vehicle } from '../types'
 
 const DEFAULT_DEPOT: Depot = {
   nome: 'Centro de Distribuição',
@@ -30,6 +30,11 @@ interface AppState {
   importWarnings: string[]
   importErrors: string[]
 
+  mapStyle: MapStyleKey
+  show3D: boolean
+  showGlobe: boolean
+  showTraffic: boolean
+
   setImportResult: (result: ImportResult) => void
   toggleOrderSelection: (id: string) => void
   selectAllOrders: () => void
@@ -40,6 +45,11 @@ interface AppState {
   setOptimizing: (isOptimizing: boolean) => void
   setOptimizedRoute: (route: OptimizedRoute | null) => void
   setDepot: (depot: Depot) => void
+
+  setMapStyle: (style: MapStyleKey) => void
+  toggle3D: () => void
+  toggleGlobe: () => void
+  toggleTraffic: () => void
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -57,6 +67,11 @@ export const useStore = create<AppState>((set) => ({
 
   importWarnings: [],
   importErrors: [],
+
+  mapStyle: 'streets',
+  show3D: false,
+  showGlobe: false,
+  showTraffic: false,
 
   setImportResult: (result) =>
     set({
@@ -97,4 +112,9 @@ export const useStore = create<AppState>((set) => ({
   setOptimizedRoute: (optimizedRoute) => set({ optimizedRoute }),
 
   setDepot: (depot) => set({ depot }),
+
+  setMapStyle: (mapStyle) => set({ mapStyle }),
+  toggle3D: () => set((state) => ({ show3D: !state.show3D })),
+  toggleGlobe: () => set((state) => ({ showGlobe: !state.showGlobe })),
+  toggleTraffic: () => set((state) => ({ showTraffic: !state.showTraffic })),
 }))

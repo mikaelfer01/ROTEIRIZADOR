@@ -1,3 +1,8 @@
+.map-view-wrap {
+  position: absolute;
+  inset: 0;
+}
+
 .map-view {
   position: absolute;
   inset: 0;

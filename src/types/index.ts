@@ -25,6 +25,15 @@ export interface Vehicle {
 
 export type MapboxProfile = 'driving' | 'driving-traffic' | 'walking' | 'cycling'
 
+export type MapStyleKey =
+  | 'streets'
+  | 'satellite'
+  | 'dark'
+  | 'light'
+  | 'outdoors'
+  | 'navDay'
+  | 'navNight'
+
 export interface Depot {
   nome: string
   endereco: string
