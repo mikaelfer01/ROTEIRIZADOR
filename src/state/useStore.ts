@@ -2,10 +2,10 @@ import { create } from 'zustand'
 import type { Depot, ImportResult, MapStyleKey, OptimizedRoute, Order, Vehicle } from '../types'
 
 const DEFAULT_DEPOT: Depot = {
-  nome: 'Centro de Distribuição',
-  endereco: 'Av. Paulista, 1000, São Paulo, SP',
-  lat: -23.5613,
-  lng: -46.6565,
+  nome: 'Depósito Vila Paris',
+  endereco: 'Rua A, 330, Vila Paris, Contagem, MG',
+  lat: -19.9317,
+  lng: -44.0539,
 }
 
 const DEFAULT_VEHICLES: Vehicle[] = [
@@ -21,6 +21,7 @@ interface AppState {
 
   orders: Order[]
   selectedOrderIds: Set<string>
+  focusedOrderId: string | null
 
   optimizedRoute: OptimizedRoute | null
   isOptimizing: boolean
@@ -40,6 +41,7 @@ interface AppState {
   selectAllOrders: () => void
   clearSelection: () => void
   setSelectedVehicleId: (id: string) => void
+  setFocusedOrderId: (id: string | null) => void
   updateOrderGeocode: (id: string, lat: number, lng: number, status: 'ok' | 'failed') => void
   setGeocoding: (isGeocoding: boolean, progress?: { done: number; total: number } | null) => void
   setOptimizing: (isOptimizing: boolean) => void
@@ -59,6 +61,7 @@ export const useStore = create<AppState>((set) => ({
 
   orders: [],
   selectedOrderIds: new Set(),
+  focusedOrderId: null,
 
   optimizedRoute: null,
   isOptimizing: false,
@@ -77,6 +80,7 @@ export const useStore = create<AppState>((set) => ({
     set({
       orders: result.orders,
       selectedOrderIds: new Set(),
+      focusedOrderId: null,
       importWarnings: result.warnings,
       importErrors: result.errors,
       optimizedRoute: null,
@@ -96,6 +100,8 @@ export const useStore = create<AppState>((set) => ({
   clearSelection: () => set({ selectedOrderIds: new Set() }),
 
   setSelectedVehicleId: (id) => set({ selectedVehicleId: id }),
+
+  setFocusedOrderId: (id) => set({ focusedOrderId: id }),
 
   updateOrderGeocode: (id, lat, lng, status) =>
     set((state) => ({

@@ -10,13 +10,19 @@ import { MapControls } from './MapControls'
 import './MapView.css'
 
 const ROUTE_SOURCE_ID = 'optimized-route'
+const ROUTE_CASING_LAYER_ID = 'optimized-route-casing'
 const ROUTE_LAYER_ID = 'optimized-route-line'
+
+const DEPOT_COLOR = '#06234c'
+const SELECTED_COLOR = '#1f8a55'
+const MUTED_COLOR = '#9ca3af'
 
 function applyRouteLayer(map: mapboxgl.Map, optimizedRoute: OptimizedRoute | null) {
   const existingSource = map.getSource(ROUTE_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined
 
   if (!optimizedRoute) {
     if (map.getLayer(ROUTE_LAYER_ID)) map.removeLayer(ROUTE_LAYER_ID)
+    if (map.getLayer(ROUTE_CASING_LAYER_ID)) map.removeLayer(ROUTE_CASING_LAYER_ID)
     if (existingSource) map.removeSource(ROUTE_SOURCE_ID)
     return
   }
@@ -32,11 +38,18 @@ function applyRouteLayer(map: mapboxgl.Map, optimizedRoute: OptimizedRoute | nul
   } else {
     map.addSource(ROUTE_SOURCE_ID, { type: 'geojson', data: geojson })
     map.addLayer({
+      id: ROUTE_CASING_LAYER_ID,
+      type: 'line',
+      source: ROUTE_SOURCE_ID,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#c9a227', 'line-width': 7, 'line-opacity': 0.55 },
+    })
+    map.addLayer({
       id: ROUTE_LAYER_ID,
       type: 'line',
       source: ROUTE_SOURCE_ID,
       layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: { 'line-color': '#1d4ed8', 'line-width': 4, 'line-opacity': 0.8 },
+      paint: { 'line-color': '#0b3d8f', 'line-width': 4, 'line-opacity': 0.95 },
     })
   }
 
@@ -53,17 +66,20 @@ function applyRouteLayer(map: mapboxgl.Map, optimizedRoute: OptimizedRoute | nul
 export function MapView() {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
-  const markersRef = useRef<mapboxgl.Marker[]>([])
+  const depotMarkerRef = useRef<mapboxgl.Marker | null>(null)
+  const orderMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map())
   const isFirstStyleRender = useRef(true)
 
   const depot = useStore((s) => s.depot)
   const orders = useStore((s) => s.orders)
   const selectedOrderIds = useStore((s) => s.selectedOrderIds)
+  const focusedOrderId = useStore((s) => s.focusedOrderId)
   const optimizedRoute = useStore((s) => s.optimizedRoute)
   const mapStyle = useStore((s) => s.mapStyle)
   const show3D = useStore((s) => s.show3D)
   const showGlobe = useStore((s) => s.showGlobe)
   const showTraffic = useStore((s) => s.showTraffic)
+  const toggleOrderSelection = useStore((s) => s.toggleOrderSelection)
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
@@ -88,6 +104,25 @@ export function MapView() {
 
     map.on('load', reapplyStyleDependentLayers)
     map.on('style.load', reapplyStyleDependentLayers)
+
+    map.on('mouseenter', ROUTE_LAYER_ID, () => {
+      map.getCanvas().style.cursor = 'pointer'
+    })
+    map.on('mouseleave', ROUTE_LAYER_ID, () => {
+      map.getCanvas().style.cursor = ''
+    })
+    map.on('click', ROUTE_LAYER_ID, (e) => {
+      const route = useStore.getState().optimizedRoute
+      if (!route) return
+      new mapboxgl.Popup({ offset: 8 })
+        .setLngLat(e.lngLat)
+        .setHTML(
+          `<strong>Rota otimizada</strong><br/>${route.totalDistanceKm.toFixed(1)} km · ${Math.round(
+            route.totalDurationMin,
+          )} min<br/>Custo estimado: R$ ${route.custoEstimado.toFixed(2)}`,
+        )
+        .addTo(map)
+    })
 
     const resizeObserver = new ResizeObserver(() => map.resize())
     resizeObserver.observe(containerRef.current)
@@ -133,33 +168,61 @@ export function MapView() {
     const map = mapRef.current
     if (!map) return
 
-    markersRef.current.forEach((m) => m.remove())
-    markersRef.current = []
+    orderMarkersRef.current.forEach((m) => m.remove())
+    orderMarkersRef.current.clear()
+    depotMarkerRef.current?.remove()
 
-    const depotMarker = new mapboxgl.Marker({ color: '#1d4ed8' })
+    const depotMarker = new mapboxgl.Marker({ color: DEPOT_COLOR })
       .setLngLat([depot.lng, depot.lat])
-      .setPopup(new mapboxgl.Popup().setText(depot.nome))
+      .setPopup(
+        new mapboxgl.Popup({ offset: 12 }).setHTML(
+          `<strong>${depot.nome}</strong><br/>${depot.endereco}`,
+        ),
+      )
       .addTo(map)
-    markersRef.current.push(depotMarker)
+    depotMarkerRef.current = depotMarker
 
     orders.forEach((order) => {
       if (order.lat == null || order.lng == null) return
       const isSelected = selectedOrderIds.has(order.id)
       const marker = new mapboxgl.Marker({
-        color: isSelected ? '#16a34a' : '#9ca3af',
+        color: isSelected ? SELECTED_COLOR : MUTED_COLOR,
       })
         .setLngLat([order.lng, order.lat])
-        .setPopup(new mapboxgl.Popup().setText(`${order.pedido} — ${order.cidade}/${order.estado}`))
+        .setPopup(
+          new mapboxgl.Popup({ offset: 12 }).setHTML(
+            `<strong>${order.pedido}</strong><br/>${order.cidade}/${order.estado}<br/><em>Clique no marcador para ${
+              isSelected ? 'remover da' : 'incluir na'
+            } rota</em>`,
+          ),
+        )
         .addTo(map)
-      markersRef.current.push(marker)
+
+      marker.getElement().style.cursor = 'pointer'
+      marker.getElement().addEventListener('click', (e) => {
+        e.stopPropagation()
+        toggleOrderSelection(order.id)
+      })
+
+      orderMarkersRef.current.set(order.id, marker)
     })
-  }, [orders, selectedOrderIds, depot])
+  }, [orders, selectedOrderIds, depot, toggleOrderSelection])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) return
     applyRouteLayer(map, optimizedRoute)
   }, [optimizedRoute])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !focusedOrderId) return
+    const marker = orderMarkersRef.current.get(focusedOrderId)
+    if (!marker) return
+    map.flyTo({ center: marker.getLngLat(), zoom: 15, duration: 800 })
+    const popup = marker.getPopup()
+    if (popup && !popup.isOpen()) marker.togglePopup()
+  }, [focusedOrderId])
 
   return (
     <div className="map-view-wrap">

@@ -9,6 +9,7 @@ export function OrdersPanel() {
 
   const orders = useStore((s) => s.orders)
   const selectedOrderIds = useStore((s) => s.selectedOrderIds)
+  const focusedOrderId = useStore((s) => s.focusedOrderId)
   const importWarnings = useStore((s) => s.importWarnings)
   const importErrors = useStore((s) => s.importErrors)
   const isGeocoding = useStore((s) => s.isGeocoding)
@@ -20,6 +21,7 @@ export function OrdersPanel() {
   const clearSelection = useStore((s) => s.clearSelection)
   const updateOrderGeocode = useStore((s) => s.updateOrderGeocode)
   const setGeocoding = useStore((s) => s.setGeocoding)
+  const setFocusedOrderId = useStore((s) => s.setFocusedOrderId)
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -86,22 +88,40 @@ export function OrdersPanel() {
       )}
 
       <ul className="orders-list">
-        {orders.map((order) => (
-          <li key={order.id} className={selectedOrderIds.has(order.id) ? 'selected' : ''}>
-            <label>
-              <input
-                type="checkbox"
-                checked={selectedOrderIds.has(order.id)}
-                onChange={() => toggleOrderSelection(order.id)}
-              />
-              <span className="order-code">{order.pedido}</span>
-              <span className="order-city">{order.cidade}/{order.estado}</span>
-              {order.geocodeStatus === 'pending' && <span className="badge badge-pending">…</span>}
-              {order.geocodeStatus === 'ok' && <span className="badge badge-ok">✓</span>}
-              {order.geocodeStatus === 'failed' && <span className="badge badge-failed">!</span>}
-            </label>
-          </li>
-        ))}
+        {orders.map((order) => {
+          const isGeocoded = order.geocodeStatus === 'ok'
+          return (
+            <li
+              key={order.id}
+              className={[
+                selectedOrderIds.has(order.id) ? 'selected' : '',
+                focusedOrderId === order.id ? 'focused' : '',
+              ].join(' ')}
+            >
+              <label>
+                <input
+                  type="checkbox"
+                  checked={selectedOrderIds.has(order.id)}
+                  onChange={() => toggleOrderSelection(order.id)}
+                />
+                <span className="order-code">{order.pedido}</span>
+                <span className="order-city">{order.cidade}/{order.estado}</span>
+                {order.geocodeStatus === 'pending' && <span className="badge badge-pending">…</span>}
+                {order.geocodeStatus === 'ok' && <span className="badge badge-ok">✓</span>}
+                {order.geocodeStatus === 'failed' && <span className="badge badge-failed">!</span>}
+              </label>
+              <button
+                type="button"
+                className="order-locate-btn"
+                title="Ver no mapa"
+                disabled={!isGeocoded}
+                onClick={() => setFocusedOrderId(order.id)}
+              >
+                ⚜
+              </button>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )

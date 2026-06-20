@@ -45,7 +45,7 @@ export function apply3D(map: MapboxMap, enabled: boolean) {
             type: 'fill-extrusion',
             minzoom: 14,
             paint: {
-              'fill-extrusion-color': '#aaa',
+              'fill-extrusion-color': '#cdbfa0',
               'fill-extrusion-height': ['get', 'height'],
               'fill-extrusion-base': ['get', 'min_height'],
               'fill-extrusion-opacity': 0.7,

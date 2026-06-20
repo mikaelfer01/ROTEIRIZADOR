@@ -15,6 +15,8 @@ export function RoutePanel() {
   const setOptimizing = useStore((s) => s.setOptimizing)
   const optimizedRoute = useStore((s) => s.optimizedRoute)
   const setOptimizedRoute = useStore((s) => s.setOptimizedRoute)
+  const focusedOrderId = useStore((s) => s.focusedOrderId)
+  const setFocusedOrderId = useStore((s) => s.setFocusedOrderId)
 
   const vehicle = vehicles.find((v) => v.id === selectedVehicleId)!
   const selectedOrders = orders.filter((o) => selectedOrderIds.has(o.id))
@@ -97,9 +99,15 @@ export function RoutePanel() {
           <p>Distância: {optimizedRoute.totalDistanceKm.toFixed(1)} km</p>
           <p>Duração: {Math.round(optimizedRoute.totalDurationMin)} min</p>
           <p>Custo estimado: R$ {optimizedRoute.custoEstimado.toFixed(2)}</p>
+          <p className="route-result-hint">Clique em uma parada para localizá-la no mapa</p>
           <ol>
             {optimizedRoute.stops.map((stop) => (
-              <li key={stop.order.id}>
+              <li
+                key={stop.order.id}
+                className={focusedOrderId === stop.order.id ? 'focused' : ''}
+                onClick={() => setFocusedOrderId(stop.order.id)}
+              >
+                <span className="stop-seq">{stop.sequence}</span>
                 {stop.order.pedido} — {stop.order.cidade}/{stop.order.estado}
               </li>
             ))}
