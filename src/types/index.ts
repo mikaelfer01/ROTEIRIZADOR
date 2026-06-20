@@ -21,6 +21,7 @@ export interface Vehicle {
   capacidadeM3: number
   custoPorKm: number
   perfil: MapboxProfile
+  distanciaMaximaKm?: number
 }
 
 export type MapboxProfile = 'driving' | 'driving-traffic' | 'walking' | 'cycling'

@@ -10,6 +10,15 @@ const DEFAULT_DEPOT: Depot = {
 
 const DEFAULT_VEHICLES: Vehicle[] = [
   { id: 'moto', nome: 'Moto', capacidadeKg: 30, capacidadeM3: 0.1, custoPorKm: 0.6, perfil: 'driving' },
+  {
+    id: 'fiorino',
+    nome: 'Fiorino',
+    capacidadeKg: 1000,
+    capacidadeM3: 3.5,
+    custoPorKm: 1.0,
+    perfil: 'driving',
+    distanciaMaximaKm: 2000,
+  },
   { id: 'van', nome: 'Van', capacidadeKg: 1200, capacidadeM3: 8, custoPorKm: 1.4, perfil: 'driving' },
   { id: 'caminhao', nome: 'Caminhão 3/4', capacidadeKg: 3500, capacidadeM3: 20, custoPorKm: 2.3, perfil: 'driving-traffic' },
 ]
@@ -40,6 +49,7 @@ interface AppState {
   toggleOrderSelection: (id: string) => void
   selectAllOrders: () => void
   clearSelection: () => void
+  setSelectedOrderIds: (ids: Set<string>) => void
   setSelectedVehicleId: (id: string) => void
   setFocusedOrderId: (id: string | null) => void
   updateOrderGeocode: (id: string, lat: number, lng: number, status: 'ok' | 'failed') => void
@@ -57,7 +67,7 @@ interface AppState {
 export const useStore = create<AppState>((set) => ({
   depot: DEFAULT_DEPOT,
   vehicles: DEFAULT_VEHICLES,
-  selectedVehicleId: DEFAULT_VEHICLES[1].id,
+  selectedVehicleId: 'fiorino',
 
   orders: [],
   selectedOrderIds: new Set(),
@@ -98,6 +108,8 @@ export const useStore = create<AppState>((set) => ({
     set((state) => ({ selectedOrderIds: new Set(state.orders.map((o) => o.id)) })),
 
   clearSelection: () => set({ selectedOrderIds: new Set() }),
+
+  setSelectedOrderIds: (ids) => set({ selectedOrderIds: ids }),
 
   setSelectedVehicleId: (id) => set({ selectedVehicleId: id }),
 

@@ -33,10 +33,72 @@
   font: inherit;
 }
 
+.route-maximize-btn {
+  background: var(--color-branco);
+  color: var(--color-bleu-dark);
+  border: 1px solid var(--color-bleu-light);
+  border-radius: var(--radius-md);
+  padding: 0.55rem 0.7rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.route-maximize-btn:hover:not(:disabled) {
+  background: var(--color-bleu-dark);
+  color: var(--color-branco);
+  box-shadow: var(--shadow-soft);
+}
+
+.route-maximize-btn:disabled {
+  background: var(--color-pierre);
+  color: var(--color-ardoise);
+  border-color: var(--color-pierre);
+  cursor: not-allowed;
+}
+
 .route-summary-line {
   font-size: 0.8rem;
   color: var(--color-ardoise);
   margin: 0;
+}
+
+.route-capacity-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.route-capacity-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.route-capacity-bar span {
+  font-size: 0.72rem;
+  color: var(--color-ardoise);
+  font-weight: 600;
+}
+
+.route-capacity-track {
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--color-pierre);
+  overflow: hidden;
+}
+
+.route-capacity-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-bleu), var(--color-or));
+  transition: width 0.25s ease;
+}
+
+.route-capacity-fill.over {
+  background: var(--color-rouge);
 }
 
 .route-warning {
